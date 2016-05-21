@@ -382,7 +382,9 @@ function GetJavascriptIndent()
 
 
   if (line =~ s:dot_first)
-    return indent(prevline) + s:sw()
+    if (getline(prevline) !~ s:dot_first && getline(prevline) !~ '^\s*[)} ]*\s*$')
+      return indent(prevline) + s:sw()
+    endif
   endif
   " If the line is comma first, dedent 1 level
   if (getline(prevline) =~ s:comma_first)
@@ -390,6 +392,11 @@ function GetJavascriptIndent()
   endif
   if (getline(prevline) =~ s:expr_case)
     return indent(prevline) + s:case_indent_after
+  endif
+
+  " If we are in a multi-line comment, cindent does the right thing.
+  if s:IsInMultilineComment(v:lnum, 1) && !s:IsLineComment(v:lnum, 1)
+    return cindent(v:lnum)
   endif
 
   " If line starts with an operator...
@@ -433,9 +440,9 @@ function GetJavascriptIndent()
     return indent(prevline) - s:sw()
   endif
 
-  " If we are in a multi-line comment, cindent does the right thing.
-  if s:IsInMultilineComment(v:lnum, 1) && !s:IsLineComment(v:lnum, 1)
-    return cindent(v:lnum)
+  " If prev line was .then() type construction, shift comment line 
+  if line =~ '^\s*/[/*]' && getline(prevline) =~ s:dot_first
+    return indent(prevline) - s:sw()
   endif
 
   " Check for multiple var assignments
@@ -458,7 +465,7 @@ function GetJavascriptIndent()
   let lnum = s:PrevNonBlankNonString(v:lnum - 1)
 
   " If the line is empty and inside a string, use the previous line.
-  if line =~ '^\s*$' && lnum != prevline
+  if (line =~ '^\s*[/*]' || line =~ '^\s*$') && lnum != prevline
     return indent(prevnonblank(v:lnum))
   endif
 
